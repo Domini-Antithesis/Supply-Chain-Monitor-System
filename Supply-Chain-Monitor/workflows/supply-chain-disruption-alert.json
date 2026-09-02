@@ -1,0 +1,314 @@
+{
+  "name": "Supply Chain Monitor - Supply Chain Disruption Alert",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "hourly-schedule",
+      "name": "Hourly schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://api.airtable.com/v0/' + $env.AIRTABLE_BASE_ID + '/' + encodeURIComponent($env.AIRTABLE_WATCHLIST_TABLE_NAME) + '?filterByFormula=' + encodeURIComponent('{Active} = 1') }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.AIRTABLE_API_KEY }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-watchlist",
+      "name": "Fetch Watchlist",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const input = $input.first();\nconst records = (input && input.json && input.json.records) || [];\nreturn records\n  .map((rec) => {\n    const f = rec.fields || {};\n    return {\n      json: {\n        supplier: f.Supplier,\n        region: f.Region,\n        query: f['Search Query'],\n        riskThreshold: (typeof f['Risk Threshold'] === 'number') ? f['Risk Threshold'] : 70\n      },\n      pairedItem: 0\n    };\n  })\n  .filter((item) => item.json.supplier && item.json.query);"
+      },
+      "id": "normalize-watchlist",
+      "name": "Normalize Watchlist",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 0]
+    },
+    {
+      "parameters": {
+        "url": "https://newsapi.org/v2/everything",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "q", "value": "={{ $json.query }}" },
+            { "name": "language", "value": "en" },
+            { "name": "sortBy", "value": "publishedAt" },
+            { "name": "pageSize", "value": "10" },
+            { "name": "from", "value": "={{ $now.minus({ hours: 26 }).toISO() }}" },
+            { "name": "to", "value": "={{ $now.minus({ hours: 24 }).toISO() }}" },
+            { "name": "apiKey", "value": "={{ $env.NEWSAPI_KEY }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "query-newsapi",
+      "name": "Query NewsAPI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\n$input.all().forEach((item, i) => {\n  const watch = $('Normalize Watchlist').all()[i] ? $('Normalize Watchlist').all()[i].json : {};\n  const articles = (item.json && item.json.articles) || [];\n  articles.forEach((article) => {\n    results.push({\n      json: {\n        supplier: watch.supplier,\n        region: watch.region,\n        riskThreshold: watch.riskThreshold,\n        title: article.title,\n        description: article.description || '',\n        url: article.url,\n        source: (article.source && article.source.name) || '',\n        publishedAt: article.publishedAt\n      },\n      pairedItem: i\n    });\n  });\n});\nreturn results;"
+      },
+      "id": "extract-articles",
+      "name": "Extract Articles",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 0]
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://api.airtable.com/v0/' + $env.AIRTABLE_BASE_ID + '/' + encodeURIComponent($env.AIRTABLE_ALERTS_TABLE_NAME) + '?maxRecords=1&filterByFormula=' + encodeURIComponent('{Article URL} = \"' + $json.url + '\"') }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.AIRTABLE_API_KEY }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "check-duplicate",
+      "name": "Check Duplicate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "cond-not-duplicate",
+              "leftValue": "={{ ($json.records || []).length }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-not-duplicate",
+      "name": "IF Not Duplicate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1440, 0]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const article = $('Extract Articles').item.json;\nconst systemPrompt = 'You are a supply chain risk analyst. Read the news article about a supplier or its region and assess disruption risk. Respond with ONLY a JSON object: {\"risk_score\": <integer 0-100>, \"risk_category\": <\"Low\"|\"Medium\"|\"High\"|\"Critical\">, \"reasoning\": <one sentence>}. Score based on how likely the article describes an active or imminent supply chain disruption (strikes, natural disasters, factory closures, shipping or port issues, trade restrictions, geopolitical instability) versus routine or unrelated news.';\nconst userPrompt = 'Supplier: ' + article.supplier + '\\nRegion: ' + article.region + '\\nArticle title: ' + article.title + '\\nArticle description: ' + article.description;\nreturn {\n  json: Object.assign({}, article, {\n    groqRequestBody: {\n      model: 'openai/gpt-oss-120b',\n      temperature: 0.2,\n      response_format: { type: 'json_object' },\n      messages: [\n        { role: 'system', content: systemPrompt },\n        { role: 'user', content: userPrompt }\n      ]\n    }\n  })\n};"
+      },
+      "id": "build-risk-prompt",
+      "name": "Build Risk Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1680, -140]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.GROQ_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "User-Agent", "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.groqRequestBody }}",
+        "options": {}
+      },
+      "id": "groq-risk-analysis",
+      "name": "Groq Risk Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1920, -140],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const article = $('Build Risk Prompt').item.json;\nlet parsed = {};\ntry {\n  const content = ($json.choices && $json.choices[0] && $json.choices[0].message && $json.choices[0].message.content) || '{}';\n  parsed = JSON.parse(content);\n} catch (e) {\n  parsed = {};\n}\nconst riskScoreNum = Number(parsed.risk_score);\nconst riskScore = Number.isFinite(riskScoreNum) ? riskScoreNum : 0;\nconst riskCategory = parsed.risk_category || 'Low';\nconst reasoning = parsed.reasoning || 'No reasoning returned by the model.';\nconst riskThreshold = (typeof article.riskThreshold === 'number') ? article.riskThreshold : 70;\nconst shouldAlert = riskCategory === 'High' || riskCategory === 'Critical' || riskScore >= riskThreshold;\nconst slackText = ':rotating_light: Supply chain risk alert (' + riskCategory + ', score ' + riskScore + ')\\n' +\n  'Supplier: ' + article.supplier + '  Region: ' + article.region + '\\n' +\n  'Article: ' + article.title + '\\n' + article.url + '\\n' +\n  'Why: ' + reasoning;\nconst emailSubject = '[Supply Chain Alert] ' + riskCategory + ' risk - ' + article.supplier + ' (' + article.region + ')';\nconst emailBody = 'A ' + riskCategory + ' risk signal (score ' + riskScore + '/100, threshold ' + riskThreshold + ') was detected for ' + article.supplier + ' in ' + article.region + '.\\n\\n' +\n  'Article: ' + article.title + '\\n' +\n  'Link: ' + article.url + '\\n' +\n  'Source: ' + article.source + '\\n' +\n  'Published: ' + article.publishedAt + '\\n\\n' +\n  'Why this was flagged: ' + reasoning + '\\n\\n' +\n  '-- Supply Chain Disruption Alert System';\nreturn {\n  json: {\n    supplier: article.supplier,\n    region: article.region,\n    title: article.title,\n    url: article.url,\n    source: article.source,\n    publishedAt: article.publishedAt,\n    riskScore: riskScore,\n    riskCategory: riskCategory,\n    reasoning: reasoning,\n    riskThreshold: riskThreshold,\n    shouldAlert: shouldAlert,\n    slackText: slackText,\n    emailSubject: emailSubject,\n    emailBody: emailBody\n  }\n};"
+      },
+      "id": "score",
+      "name": "Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2160, -140]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.airtable.com/v0/' + $env.AIRTABLE_BASE_ID + '/' + encodeURIComponent($env.AIRTABLE_ALERTS_TABLE_NAME) }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.AIRTABLE_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { records: [ { fields: { 'Detected At': $now.toISO(), 'Supplier': $json.supplier, 'Region': $json.region, 'Article Title': $json.title, 'Article URL': $json.url, 'Source': $json.source, 'Published At': $json.publishedAt, 'Risk Score': $json.riskScore, 'Risk Category': $json.riskCategory, 'Risk Reasoning': $json.reasoning, 'Risk Threshold Used': $json.riskThreshold, 'Alert Sent': $json.shouldAlert, 'Alert Channels': $json.shouldAlert ? ['Slack', 'Email'] : [] } } ], typecast: true } }}",
+        "options": {}
+      },
+      "id": "log-to-airtable",
+      "name": "Log to Airtable",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2400, -140],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "cond-should-alert",
+              "leftValue": "={{ $('Score').item.json.shouldAlert }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-should-alert",
+      "name": "IF Should Alert",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [2640, -140]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { text: $('Score').item.json.slackText } }}",
+        "options": {}
+      },
+      "id": "send-slack-alert",
+      "name": "Send Slack Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2880, -260],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "fromEmail": "alerts@supply-chain-monitor.local",
+        "toEmail": "={{ $env.ALERT_EMAIL_TO }}",
+        "subject": "={{ $('Score').item.json.emailSubject }}",
+        "emailFormat": "text",
+        "text": "={{ $('Score').item.json.emailBody }}",
+        "options": {}
+      },
+      "id": "send-email-alert",
+      "name": "Send Email Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [3120, -260],
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_WITH_SMTP_CREDENTIAL_ID",
+          "name": "Supply Chain Monitor SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "no-action-low-risk",
+      "name": "No Action - Low Risk",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [2880, -20]
+    },
+    {
+      "parameters": {},
+      "id": "no-action-duplicate",
+      "name": "No Action - Duplicate",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1680, 140]
+    }
+  ],
+  "connections": {
+    "Hourly schedule": { "main": [[{ "node": "Fetch Watchlist", "type": "main", "index": 0 }]] },
+    "Fetch Watchlist": { "main": [[{ "node": "Normalize Watchlist", "type": "main", "index": 0 }]] },
+    "Normalize Watchlist": { "main": [[{ "node": "Query NewsAPI", "type": "main", "index": 0 }]] },
+    "Query NewsAPI": { "main": [[{ "node": "Extract Articles", "type": "main", "index": 0 }]] },
+    "Extract Articles": { "main": [[{ "node": "Check Duplicate", "type": "main", "index": 0 }]] },
+    "Check Duplicate": { "main": [[{ "node": "IF Not Duplicate", "type": "main", "index": 0 }]] },
+    "IF Not Duplicate": {
+      "main": [
+        [{ "node": "Build Risk Prompt", "type": "main", "index": 0 }],
+        [{ "node": "No Action - Duplicate", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Risk Prompt": { "main": [[{ "node": "Groq Risk Analysis", "type": "main", "index": 0 }]] },
+    "Groq Risk Analysis": { "main": [[{ "node": "Score", "type": "main", "index": 0 }]] },
+    "Score": { "main": [[{ "node": "Log to Airtable", "type": "main", "index": 0 }]] },
+    "Log to Airtable": { "main": [[{ "node": "IF Should Alert", "type": "main", "index": 0 }]] },
+    "IF Should Alert": {
+      "main": [
+        [{ "node": "Send Slack Alert", "type": "main", "index": 0 }],
+        [{ "node": "No Action - Low Risk", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send Slack Alert": { "main": [[{ "node": "Send Email Alert", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "2"
+}

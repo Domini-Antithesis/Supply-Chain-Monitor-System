@@ -1,0 +1,85 @@
+services:
+  n8n:
+    image: n8nio/n8n:1.122.3
+    container_name: supply-chain-monitor-n8n
+    # Bound to 127.0.0.1 so the UI is reachable only from this machine, never
+    # from anywhere else on the network.
+    ports:
+      - "127.0.0.1:5678:5678"
+    environment:
+      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: ${WEBHOOK_URL:-http://localhost:5678/}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-supply-chain-monitor-local-development-key-change-before-production}
+      GENERIC_TIMEZONE: ${GENERIC_TIMEZONE:-UTC}
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+      # Passed through so workflow expressions can read them via {{$env.VAR}}.
+      # Left blank by default (no fake keys baked in) if .env is missing.
+      NEWSAPI_KEY: ${NEWSAPI_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      AIRTABLE_API_KEY: ${AIRTABLE_API_KEY:-}
+      AIRTABLE_BASE_ID: ${AIRTABLE_BASE_ID:-}
+      AIRTABLE_ALERTS_TABLE_NAME: ${AIRTABLE_ALERTS_TABLE_NAME:-Disruption Alerts}
+      AIRTABLE_WATCHLIST_TABLE_NAME: ${AIRTABLE_WATCHLIST_TABLE_NAME:-Watchlist}
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./workflows:/files/workflows:ro
+    restart: unless-stopped
+
+  # One-shot first-boot setup: creates the n8n owner account, provisions the
+  # Airtable tables, creates the SMTP credential, then imports and activates
+  # both workflows. Idempotent — it exits immediately on an already-set-up stack.
+  bootstrap:
+    image: node:22-alpine
+    container_name: supply-chain-monitor-bootstrap
+    depends_on:
+      - n8n
+    environment:
+      N8N_BASE_URL: http://n8n:5678
+      N8N_OWNER_EMAIL: ${N8N_OWNER_EMAIL:-}
+      N8N_OWNER_PASSWORD: ${N8N_OWNER_PASSWORD:-}
+      N8N_OWNER_FIRST_NAME: ${N8N_OWNER_FIRST_NAME:-Supply}
+      N8N_OWNER_LAST_NAME: ${N8N_OWNER_LAST_NAME:-Monitor}
+      AIRTABLE_API_KEY: ${AIRTABLE_API_KEY:-}
+      AIRTABLE_BASE_ID: ${AIRTABLE_BASE_ID:-}
+      AIRTABLE_ALERTS_TABLE_NAME: ${AIRTABLE_ALERTS_TABLE_NAME:-Disruption Alerts}
+      AIRTABLE_WATCHLIST_TABLE_NAME: ${AIRTABLE_WATCHLIST_TABLE_NAME:-Watchlist}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      WORKFLOWS_DIR: /workflows
+    volumes:
+      - ./bootstrap:/bootstrap:ro
+      - ./workflows:/workflows:ro
+    command: ["node", "/bootstrap/bootstrap.js"]
+    restart: "no"
+
+  dashboard:
+    image: node:22-alpine
+    container_name: supply-chain-monitor-dashboard
+    # Bound to 127.0.0.1 so the dashboard (and its first-run setup page) is
+    # reachable only from this machine.
+    ports:
+      - "127.0.0.1:${DASHBOARD_PORT:-8080}:8080"
+    environment:
+      DASHBOARD_PORT: 8080
+      AIRTABLE_API_KEY: ${AIRTABLE_API_KEY:-}
+      AIRTABLE_BASE_ID: ${AIRTABLE_BASE_ID:-}
+      AIRTABLE_ALERTS_TABLE_NAME: ${AIRTABLE_ALERTS_TABLE_NAME:-Disruption Alerts}
+      AIRTABLE_WATCHLIST_TABLE_NAME: ${AIRTABLE_WATCHLIST_TABLE_NAME:-Watchlist}
+      # Where the setup page writes the generated .env. Mounted writable below;
+      # the server only ever writes this one file inside it.
+      PROJECT_DIR: /project
+    volumes:
+      - ./dashboard:/dashboard:ro
+      - ./:/project
+    command: ["node", "/dashboard/server.js"]
+    restart: unless-stopped
+
+volumes:
+  n8n_data:

@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Set up Supply Chain Monitor</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <div>
+            <h1>Supply Chain Monitor</h1>
+            <p class="brand-sub">First-run setup</p>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="page setup-page">
+      <div id="already-done" class="notice" hidden>
+        <strong>Setup has already been completed.</strong>
+        <span
+          >Configuration lives in <code>.env</code>. To change it, edit that file directly and restart with
+          <code>docker compose up -d</code>. <a href="/">Go to the dashboard</a>.</span
+        >
+      </div>
+
+      <div id="setup-body">
+        <section class="intro-card">
+          <h2>Let's get you connected</h2>
+          <p>
+            This system reads the news for your suppliers, has an AI grade the disruption risk, and alerts you when
+            something serious appears. To do that it needs accounts on a few free services — each one is linked below
+            with what to click.
+          </p>
+          <p class="intro-note">
+            Your keys are written to a local <code>.env</code> file on this machine only. They are never uploaded
+            anywhere, never committed to source control, and never sent to your browser again after saving.
+          </p>
+        </section>
+
+        <form id="setup-form">
+          <!-- 1. n8n account -->
+          <section class="setup-step">
+            <div class="step-head">
+              <span class="step-num">1</span>
+              <div>
+                <h3>Choose your login</h3>
+                <p>You'll use this to sign in to the workflow engine at <code>localhost:5678</code>. Make it up now — the account is created for you automatically.</p>
+              </div>
+            </div>
+            <div class="form-grid">
+              <label>
+                <span>Email</span>
+                <input name="N8N_OWNER_EMAIL" type="email" required placeholder="you@example.com" autocomplete="off" />
+              </label>
+              <label>
+                <span>Password <em>(8+ chars, 1 uppercase, 1 number)</em></span>
+                <input name="N8N_OWNER_PASSWORD" type="password" required placeholder="••••••••" autocomplete="new-password" />
+              </label>
+            </div>
+          </section>
+
+          <!-- 2. NewsAPI -->
+          <section class="setup-step">
+            <div class="step-head">
+              <span class="step-num">2</span>
+              <div>
+                <h3>NewsAPI — where the news comes from</h3>
+                <p>
+                  Register free at
+                  <a href="https://newsapi.org/register" target="_blank" rel="noopener noreferrer">newsapi.org/register</a>.
+                  Your key appears on screen right after signing up. The free tier works on localhost, which is where this runs.
+                </p>
+              </div>
+            </div>
+            <div class="form-grid">
+              <label class="wide">
+                <span>API key</span>
+                <input name="NEWSAPI_KEY" type="text" required placeholder="e.g. 1a2b3c4d5e6f7g8h9i0j" autocomplete="off" />
+              </label>
+            </div>
+            <div class="test-row">
+              <button class="btn" type="button" data-test="newsapi" data-fields="NEWSAPI_KEY">Test this key</button>
+              <span class="test-result" data-result="newsapi"></span>
+            </div>
+          </section>
+
+          <!-- 3. Groq -->
+          <section class="setup-step">
+            <div class="step-head">
+              <span class="step-num">3</span>
+              <div>
+                <h3>Groq — the AI that reads the articles</h3>
+                <p>
+                  Sign in at
+                  <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer">console.groq.com/keys</a>
+                  and click <strong>Create API Key</strong>. Copy it immediately — Groq shows it only once.
+                </p>
+              </div>
+            </div>
+            <div class="form-grid">
+              <label class="wide">
+                <span>API key</span>
+                <input name="GROQ_API_KEY" type="text" required placeholder="gsk_..." autocomplete="off" />
+              </label>
+            </div>
+            <div class="test-row">
+              <button class="btn" type="button" data-test="groq" data-fields="GROQ_API_KEY">Test this key</button>
+              <span class="test-result" data-result="groq"></span>
+            </div>
+          </section>
+
+          <!-- 4. Airtable -->
+          <section class="setup-step">
+            <div class="step-head">
+              <span class="step-num">4</span>
+              <div>
+                <h3>Airtable — where findings are stored</h3>
+                <p>
+                  Two things here. First, create an <strong>empty base</strong> at
+                  <a href="https://airtable.com" target="_blank" rel="noopener noreferrer">airtable.com</a> — leave it
+                  completely empty, the tables get built for you. Its ID is the <code>appXXXXXXXX</code> part of the
+                  URL while the base is open.
+                </p>
+                <p>
+                  Second, create a token at
+                  <a href="https://airtable.com/create/tokens" target="_blank" rel="noopener noreferrer">airtable.com/create/tokens</a>.
+                  Add your new base under <strong>Access</strong>, and tick these four scopes:
+                  <code>data.records:read</code>, <code>data.records:write</code>, <code>schema.bases:read</code>,
+                  <code>schema.bases:write</code>. The schema ones are what let it build the tables — it's the step
+                  people most often miss.
+                </p>
+              </div>
+            </div>
+            <div class="form-grid">
+              <label class="wide">
+                <span>Personal access token</span>
+                <input name="AIRTABLE_API_KEY" type="text" required placeholder="pat..." autocomplete="off" />
+              </label>
+              <label>
+                <span>Base ID</span>
+                <input name="AIRTABLE_BASE_ID" type="text" required placeholder="appXXXXXXXXXXXXXX" autocomplete="off" />
+              </label>
+            </div>
+            <div class="test-row">
+              <button class="btn" type="button" data-test="airtable" data-fields="AIRTABLE_API_KEY,AIRTABLE_BASE_ID">
+                Test token &amp; base
+              </button>
+              <span class="test-result" data-result="airtable"></span>
+            </div>
+          </section>
+
+          <!-- 5. Slack -->
+          <section class="setup-step">
+            <div class="step-head">
+              <span class="step-num">5</span>
+              <div>
+                <h3>Slack — where urgent alerts land</h3>
+                <p>
+                  Follow
+                  <a href="https://api.slack.com/messaging/webhooks" target="_blank" rel="noopener noreferrer">Slack's incoming webhook guide</a>:
+                  create an app, enable <strong>Incoming Webhooks</strong>, then <strong>Add New Webhook to Workspace</strong>
+                  and pick the channel alerts should go to. Copy the URL it gives you.
+                </p>
+              </div>
+            </div>
+            <div class="form-grid">
+              <label class="wide">
+                <span>Webhook URL</span>
+                <input name="SLACK_WEBHOOK_URL" type="url" required placeholder="https://hooks.slack.com/services/..." autocomplete="off" />
+              </label>
+            </div>
+            <div class="test-row">
+              <button class="btn" type="button" data-test="slack" data-fields="SLACK_WEBHOOK_URL">Send a test message</button>
+              <span class="test-result" data-result="slack"></span>
+            </div>
+          </section>
+
+          <!-- 6. Email -->
+          <section class="setup-step">
+            <div class="step-head">
+              <span class="step-num">6</span>
+              <div>
+                <h3>Email alerts</h3>
+                <p>
+                  Where should alert emails go, and which mailbox sends them? For Gmail use
+                  <code>smtp.gmail.com</code> port <code>587</code> with an
+                  <a href="https://support.google.com/accounts/answer/185833" target="_blank" rel="noopener noreferrer">app password</a>
+                  — a normal account password will not work.
+                </p>
+                <p class="optional-note">The SMTP fields are optional. Leave them blank to run Slack-only.</p>
+              </div>
+            </div>
+            <div class="form-grid">
+              <label class="wide">
+                <span>Send alerts to</span>
+                <input name="ALERT_EMAIL_TO" type="email" required placeholder="procurement@yourcompany.com" autocomplete="off" />
+              </label>
+              <label>
+                <span>SMTP host <em>(optional)</em></span>
+                <input name="SMTP_HOST" type="text" placeholder="smtp.gmail.com" autocomplete="off" />
+              </label>
+              <label>
+                <span>SMTP port</span>
+                <input name="SMTP_PORT" type="number" value="587" />
+              </label>
+              <label>
+                <span>SMTP username</span>
+                <input name="SMTP_USER" type="text" placeholder="you@gmail.com" autocomplete="off" />
+              </label>
+              <label>
+                <span>SMTP password / app password</span>
+                <input name="SMTP_PASSWORD" type="password" placeholder="••••••••" autocomplete="new-password" />
+              </label>
+            </div>
+          </section>
+
+          <div class="submit-row">
+            <button class="btn btn-primary btn-large" type="submit">Save configuration</button>
+            <p id="setup-error" class="form-error" hidden></p>
+          </div>
+        </form>
+
+        <section id="done-panel" class="done-panel" hidden>
+          <h2>Configuration saved</h2>
+          <p>Your keys were written to <code>.env</code>. One last step to bring everything online:</p>
+          <pre class="cmd">docker compose up -d</pre>
+          <p class="done-note">
+            Run that in the <code>Supply-Chain-Monitor</code> folder. If you started this with
+            <code>start.ps1</code> or <code>start.sh</code>, it is already happening automatically — just wait a
+            moment. Setup then creates your account, builds the Airtable tables, and switches both workflows on.
+          </p>
+          <p><a class="btn btn-primary" href="/">Open the dashboard</a></p>
+        </section>
+      </div>
+    </main>
+
+    <script src="/setup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Supply Chain Monitor</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <div>
+            <h1>Supply Chain Monitor</h1>
+            <p class="brand-sub">Supply chain disruption alert system</p>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <span id="last-updated" class="last-updated"></span>
+          <button id="refresh" class="btn" type="button">Refresh</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="page">
+      <div id="setup-notice" class="notice" hidden>
+        <strong>Airtable isn't configured yet.</strong>
+        <span
+          >Set <code>AIRTABLE_API_KEY</code> and <code>AIRTABLE_BASE_ID</code> in <code>.env</code>, then restart the
+          stack. The dashboard will populate once the pipeline logs its first signal.</span
+        >
+      </div>
+      <div id="error-notice" class="notice notice-error" hidden></div>
+
+      <section aria-labelledby="kpi-heading">
+        <h2 id="kpi-heading" class="section-heading">Overview</h2>
+        <div class="kpi-row">
+          <article class="tile">
+            <p class="tile-label">Signals analysed</p>
+            <p class="tile-value" id="kpi-signals">—</p>
+            <p class="tile-note">most recent 100 logged</p>
+          </article>
+          <article class="tile">
+            <p class="tile-label">Alerts sent</p>
+            <p class="tile-value" id="kpi-alerts">—</p>
+            <p class="tile-note">crossed the alert threshold</p>
+          </article>
+          <article class="tile">
+            <p class="tile-label">Average risk score</p>
+            <p class="tile-value" id="kpi-score">—</p>
+            <p class="tile-note">out of 100</p>
+          </article>
+          <article class="tile">
+            <p class="tile-label">Suppliers monitored</p>
+            <p class="tile-value" id="kpi-suppliers">—</p>
+            <p class="tile-note">active watchlist entries</p>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="breakdown-heading">
+        <h2 id="breakdown-heading" class="section-heading">Risk breakdown</h2>
+        <div class="card">
+          <div id="breakdown" class="breakdown"></div>
+        </div>
+      </section>
+
+      <section aria-labelledby="alerts-heading">
+        <h2 id="alerts-heading" class="section-heading">Recent signals</h2>
+        <div class="card">
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">Detected</th>
+                  <th scope="col">Supplier</th>
+                  <th scope="col">Article</th>
+                  <th scope="col" class="num">Score</th>
+                  <th scope="col">Risk</th>
+                  <th scope="col">Alerted</th>
+                </tr>
+              </thead>
+              <tbody id="alerts-body">
+                <tr>
+                  <td colspan="6" class="empty">Loading…</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="watchlist-heading">
+        <h2 id="watchlist-heading" class="section-heading">Watchlist</h2>
+        <div class="card">
+          <p class="card-intro">
+            Suppliers and regions checked every hour. Each entry has its own risk threshold — the score at which a
+            finding escalates to a Slack and email alert.
+          </p>
+
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">Supplier</th>
+                  <th scope="col">Region</th>
+                  <th scope="col">Search query</th>
+                  <th scope="col" class="num">Threshold</th>
+                  <th scope="col">Active</th>
+                  <th scope="col"><span class="sr-only">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody id="watchlist-body">
+                <tr>
+                  <td colspan="6" class="empty">Loading…</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <form id="watchlist-form" class="add-form">
+            <h3 class="form-heading">Add a supplier</h3>
+            <div class="form-grid">
+              <label>
+                <span>Supplier</span>
+                <input name="supplier" type="text" required placeholder="Acme Components" />
+              </label>
+              <label>
+                <span>Region</span>
+                <input name="region" type="text" placeholder="Taiwan" />
+              </label>
+              <label class="wide">
+                <span>NewsAPI search query</span>
+                <input
+                  name="query"
+                  type="text"
+                  required
+                  placeholder='"Acme Components" AND (strike OR shortage OR delay OR port)'
+                />
+              </label>
+              <label>
+                <span>Risk threshold</span>
+                <input name="riskThreshold" type="number" min="0" max="100" value="70" />
+              </label>
+            </div>
+            <button class="btn btn-primary" type="submit">Add to watchlist</button>
+            <p id="form-error" class="form-error" hidden></p>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

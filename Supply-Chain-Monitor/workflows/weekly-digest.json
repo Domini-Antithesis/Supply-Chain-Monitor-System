@@ -1,0 +1,147 @@
+{
+  "name": "Supply Chain Monitor - Weekly Signal Digest",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "weekly-schedule",
+      "name": "Weekly schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://api.airtable.com/v0/' + $env.AIRTABLE_BASE_ID + '/' + encodeURIComponent($env.AIRTABLE_ALERTS_TABLE_NAME) }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.AIRTABLE_API_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "maxRecords", "value": "100" },
+            { "name": "filterByFormula", "value": "AND(IS_AFTER({Detected At}, DATEADD(TODAY(), -7, 'days')), NOT({Alert Sent}))" },
+            { "name": "sort[0][field]", "value": "Risk Score" },
+            { "name": "sort[0][direction]", "value": "desc" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-week-signals",
+      "name": "Fetch Week Signals",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const input = $input.first();\nconst records = (input && input.json && input.json.records) || [];\nconst rows = records.map((r) => r.fields || {});\nconst byCategory = {};\nrows.forEach((f) => {\n  const c = f['Risk Category'] || 'Unknown';\n  byCategory[c] = (byCategory[c] || 0) + 1;\n});\nconst summaryLine = Object.keys(byCategory).map((k) => k + ': ' + byCategory[k]).join(', ');\nconst lines = rows.slice(0, 20).map((f, i) => {\n  return (i + 1) + '. [' + (f['Risk Category'] || '?') + ' ' + (f['Risk Score'] != null ? f['Risk Score'] : '?') + '] ' +\n    (f.Supplier || '?') + ' (' + (f.Region || '?') + ')\\n   ' + (f['Article Title'] || '') + '\\n   ' + (f['Article URL'] || '');\n});\nconst header = 'Weekly supply chain signal digest\\n' +\n  'Findings below the alert threshold in the last 7 days: ' + rows.length + '\\n' +\n  (summaryLine ? 'By category: ' + summaryLine + '\\n' : '');\nconst body = rows.length > 20 ? lines.join('\\n\\n') + '\\n\\n(showing the 20 highest-scoring of ' + rows.length + ')' : lines.join('\\n\\n');\nreturn [{ json: { count: rows.length, digestText: header + '\\n' + body } }];"
+      },
+      "id": "build-digest",
+      "name": "Build Digest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "cond-has-findings",
+              "leftValue": "={{ $json.count }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-findings",
+      "name": "IF Has Findings",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [720, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { text: $('Build Digest').item.json.digestText } }}",
+        "options": {}
+      },
+      "id": "send-slack-digest",
+      "name": "Send Slack Digest",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, -100],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "fromEmail": "alerts@supply-chain-monitor.local",
+        "toEmail": "={{ $env.ALERT_EMAIL_TO }}",
+        "subject": "Weekly supply chain signal digest",
+        "emailFormat": "text",
+        "text": "={{ $('Build Digest').item.json.digestText }}",
+        "options": {}
+      },
+      "id": "send-email-digest",
+      "name": "Send Email Digest",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1200, -100],
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_WITH_SMTP_CREDENTIAL_ID",
+          "name": "Supply Chain Monitor SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "no-action-empty-week",
+      "name": "No Action - Nothing To Report",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [960, 100]
+    }
+  ],
+  "connections": {
+    "Weekly schedule": { "main": [[{ "node": "Fetch Week Signals", "type": "main", "index": 0 }]] },
+    "Fetch Week Signals": { "main": [[{ "node": "Build Digest", "type": "main", "index": 0 }]] },
+    "Build Digest": { "main": [[{ "node": "IF Has Findings", "type": "main", "index": 0 }]] },
+    "IF Has Findings": {
+      "main": [
+        [{ "node": "Send Slack Digest", "type": "main", "index": 0 }],
+        [{ "node": "No Action - Nothing To Report", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send Slack Digest": { "main": [[{ "node": "Send Email Digest", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "1"
+}

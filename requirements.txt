@@ -1,0 +1,32 @@
+# Supply Chain Monitor — requirements
+#
+# This project has no Python application code and no npm dependencies.
+# Everything runs inside Docker containers orchestrated by
+# Supply-Chain-Monitor/docker-compose.yml:
+#   - n8n            (the two pipelines, in Supply-Chain-Monitor/workflows/)
+#   - dashboard      (Node standard library only — no framework, no build step)
+#   - bootstrap      (one-shot first-boot setup, Node standard library only)
+# There is nothing here to `pip install` and nothing to `npm install`.
+#
+# --- System-level requirements (not pip packages) ---
+#   Docker Desktop >= 24.x   (Windows/Mac) or Docker Engine + Compose v2 (Linux)
+#   Docker Compose v2        (bundled with modern Docker Desktop; `docker compose version`)
+#   ~1 GB free disk          (n8n + node:22-alpine images; no local LLM)
+#
+# --- Free-tier accounts / API keys needed before the pipeline can run ---
+#   NewsAPI account    (https://newsapi.org/register)      -> NEWSAPI_KEY
+#   Groq account       (https://console.groq.com/keys)     -> GROQ_API_KEY
+#   Airtable account   (https://airtable.com)              -> AIRTABLE_API_KEY, AIRTABLE_BASE_ID
+#     Token scopes required: data.records:read, data.records:write,
+#     schema.bases:read, schema.bases:write  (the schema scopes let the
+#     bootstrap container create both tables for you)
+#   Slack workspace with an Incoming Webhook               -> SLACK_WEBHOOK_URL
+#   SMTP sender, e.g. Gmail + app password (optional)      -> SMTP_HOST/PORT/USER/PASSWORD
+#
+# All of the above go in Supply-Chain-Monitor/.env (copied from .env.example).
+# That file is gitignored and must never be committed.
+#
+# --- Optional: only for ad-hoc verification/debugging scripts ---
+# Not required to run the system. Standard library only, no third-party packages:
+#   python>=3.10
+#   node>=18          (only if you want to run dashboard/server.js outside Docker)

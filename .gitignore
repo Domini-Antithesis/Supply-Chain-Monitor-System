@@ -1,0 +1,6 @@
+# Real secrets live only in .env, which must never be committed. Unlike the
+# n8n encryption key in docker-compose.yml (a local dev-only fallback), the
+# variables in this project's .env are live third-party API keys tied to the
+# user's real accounts (NewsAPI, Groq, Airtable, Slack, SMTP) — they must
+# never enter git history, even as a "placeholder that gets swapped later".
+.env
