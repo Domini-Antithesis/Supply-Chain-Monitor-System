@@ -16,7 +16,10 @@
       "name": "Hourly schedule",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [0, 0]
+      "position": [
+        0,
+        0
+      ]
     },
     {
       "parameters": {
@@ -24,7 +27,10 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "=Bearer {{ $env.AIRTABLE_API_KEY }}" }
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.AIRTABLE_API_KEY }}"
+            }
           ]
         },
         "options": {}
@@ -33,7 +39,10 @@
       "name": "Fetch Watchlist",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [240, 0],
+      "position": [
+        240,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 2000
@@ -47,7 +56,10 @@
       "name": "Normalize Watchlist",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [480, 0]
+      "position": [
+        480,
+        0
+      ]
     },
     {
       "parameters": {
@@ -55,13 +67,34 @@
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "q", "value": "={{ $json.query }}" },
-            { "name": "language", "value": "en" },
-            { "name": "sortBy", "value": "publishedAt" },
-            { "name": "pageSize", "value": "10" },
-            { "name": "from", "value": "={{ $now.minus({ hours: 26 }).toISO() }}" },
-            { "name": "to", "value": "={{ $now.minus({ hours: 24 }).toISO() }}" },
-            { "name": "apiKey", "value": "={{ $env.NEWSAPI_KEY }}" }
+            {
+              "name": "q",
+              "value": "={{ $json.query }}"
+            },
+            {
+              "name": "language",
+              "value": "en"
+            },
+            {
+              "name": "sortBy",
+              "value": "publishedAt"
+            },
+            {
+              "name": "pageSize",
+              "value": "10"
+            },
+            {
+              "name": "from",
+              "value": "={{ $now.minus({ hours: 26 }).toISO() }}"
+            },
+            {
+              "name": "to",
+              "value": "={{ $now.minus({ hours: 24 }).toISO() }}"
+            },
+            {
+              "name": "apiKey",
+              "value": "={{ $env.NEWSAPI_KEY }}"
+            }
           ]
         },
         "options": {}
@@ -70,7 +103,10 @@
       "name": "Query NewsAPI",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [720, 0],
+      "position": [
+        720,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 2000,
@@ -85,7 +121,10 @@
       "name": "Extract Articles",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [960, 0]
+      "position": [
+        960,
+        0
+      ]
     },
     {
       "parameters": {
@@ -93,7 +132,10 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "=Bearer {{ $env.AIRTABLE_API_KEY }}" }
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.AIRTABLE_API_KEY }}"
+            }
           ]
         },
         "options": {}
@@ -102,7 +144,10 @@
       "name": "Check Duplicate",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1200, 0],
+      "position": [
+        1200,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 2000,
@@ -111,13 +156,20 @@
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "id": "cond-not-duplicate",
               "leftValue": "={{ ($json.records || []).length }}",
               "rightValue": 0,
-              "operator": { "type": "number", "operation": "equals" }
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
             }
           ],
           "combinator": "and"
@@ -128,7 +180,10 @@
       "name": "IF Not Duplicate",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [1440, 0]
+      "position": [
+        1440,
+        0
+      ]
     },
     {
       "parameters": {
@@ -139,7 +194,10 @@
       "name": "Build Risk Prompt",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1680, -140]
+      "position": [
+        1680,
+        -140
+      ]
     },
     {
       "parameters": {
@@ -148,9 +206,18 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "=Bearer {{ $env.GROQ_API_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "User-Agent", "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36" }
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.GROQ_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+            }
           ]
         },
         "sendBody": true,
@@ -162,7 +229,10 @@
       "name": "Groq Risk Analysis",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1920, -140],
+      "position": [
+        1920,
+        -140
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 2000,
@@ -177,7 +247,10 @@
       "name": "Score",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2160, -140]
+      "position": [
+        2160,
+        -140
+      ]
     },
     {
       "parameters": {
@@ -186,8 +259,14 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "=Bearer {{ $env.AIRTABLE_API_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.AIRTABLE_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
@@ -199,7 +278,10 @@
       "name": "Log to Airtable",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2400, -140],
+      "position": [
+        2400,
+        -140
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 2000
@@ -207,13 +289,20 @@
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "id": "cond-should-alert",
               "leftValue": "={{ $('Score').item.json.shouldAlert }}",
               "rightValue": true,
-              "operator": { "type": "boolean", "operation": "equals" }
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
             }
           ],
           "combinator": "and"
@@ -224,7 +313,10 @@
       "name": "IF Should Alert",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [2640, -140]
+      "position": [
+        2640,
+        -140
+      ]
     },
     {
       "parameters": {
@@ -239,7 +331,10 @@
       "name": "Send Slack Alert",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2880, -260],
+      "position": [
+        2880,
+        -260
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 2000,
@@ -258,13 +353,19 @@
       "name": "Send Email Alert",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [3120, -260],
+      "position": [
+        3120,
+        -260
+      ],
       "credentials": {
         "smtp": {
           "id": "REPLACE_WITH_SMTP_CREDENTIAL_ID",
           "name": "Supply Chain Monitor SMTP"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {},
@@ -272,7 +373,10 @@
       "name": "No Action - Low Risk",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [2880, -20]
+      "position": [
+        2880,
+        -20
+      ]
     },
     {
       "parameters": {},
@@ -280,35 +384,174 @@
       "name": "No Action - Duplicate",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [1680, 140]
+      "position": [
+        1680,
+        140
+      ]
     }
   ],
   "connections": {
-    "Hourly schedule": { "main": [[{ "node": "Fetch Watchlist", "type": "main", "index": 0 }]] },
-    "Fetch Watchlist": { "main": [[{ "node": "Normalize Watchlist", "type": "main", "index": 0 }]] },
-    "Normalize Watchlist": { "main": [[{ "node": "Query NewsAPI", "type": "main", "index": 0 }]] },
-    "Query NewsAPI": { "main": [[{ "node": "Extract Articles", "type": "main", "index": 0 }]] },
-    "Extract Articles": { "main": [[{ "node": "Check Duplicate", "type": "main", "index": 0 }]] },
-    "Check Duplicate": { "main": [[{ "node": "IF Not Duplicate", "type": "main", "index": 0 }]] },
+    "Hourly schedule": {
+      "main": [
+        [
+          {
+            "node": "Fetch Watchlist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Watchlist": {
+      "main": [
+        [
+          {
+            "node": "Normalize Watchlist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Watchlist": {
+      "main": [
+        [
+          {
+            "node": "Query NewsAPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query NewsAPI": {
+      "main": [
+        [
+          {
+            "node": "Extract Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Articles": {
+      "main": [
+        [
+          {
+            "node": "Check Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Duplicate": {
+      "main": [
+        [
+          {
+            "node": "IF Not Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "IF Not Duplicate": {
       "main": [
-        [{ "node": "Build Risk Prompt", "type": "main", "index": 0 }],
-        [{ "node": "No Action - Duplicate", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Build Risk Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Action - Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Build Risk Prompt": { "main": [[{ "node": "Groq Risk Analysis", "type": "main", "index": 0 }]] },
-    "Groq Risk Analysis": { "main": [[{ "node": "Score", "type": "main", "index": 0 }]] },
-    "Score": { "main": [[{ "node": "Log to Airtable", "type": "main", "index": 0 }]] },
-    "Log to Airtable": { "main": [[{ "node": "IF Should Alert", "type": "main", "index": 0 }]] },
+    "Build Risk Prompt": {
+      "main": [
+        [
+          {
+            "node": "Groq Risk Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Risk Analysis": {
+      "main": [
+        [
+          {
+            "node": "Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score": {
+      "main": [
+        [
+          {
+            "node": "Log to Airtable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Airtable": {
+      "main": [
+        [
+          {
+            "node": "IF Should Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "IF Should Alert": {
       "main": [
-        [{ "node": "Send Slack Alert", "type": "main", "index": 0 }],
-        [{ "node": "No Action - Low Risk", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Send Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Action - Low Risk",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Send Slack Alert": { "main": [[{ "node": "Send Email Alert", "type": "main", "index": 0 }]] }
+    "Send Slack Alert": {
+      "main": [
+        [
+          {
+            "node": "Send Email Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": false,
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "versionId": "2"
 }

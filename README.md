@@ -177,7 +177,7 @@ Airtable holds two tables, both created automatically by the bootstrap container
 |---|---|
 | Orchestration | [n8n](https://n8n.io) |
 | News source | [NewsAPI](https://newsapi.org) (free "Developer" tier) |
-| Risk analysis (LLM) | [Groq](https://groq.com) (`llama-3.3-70b-versatile`) |
+| Risk analysis (LLM) | [Groq](https://groq.com) (`openai/gpt-oss-120b`) |
 | Data store / audit log | [Airtable](https://airtable.com) |
 | Alerting | Slack Incoming Webhook + SMTP email |
 | Dashboard | Node.js standard library (no framework, no build step) |
@@ -306,7 +306,7 @@ bash start.sh
 
 1. Checks Docker is running (and tells you clearly if it isn't).
 2. Starts the dashboard container.
-3. Opens `http://localhost:8080/setup` in your browser.
+3. Opens `http://localhost:8101/setup` in your browser.
 4. **Waits** while you fill in the form — leave the terminal open.
 5. The moment you save, it brings up the rest of the stack, runs first-boot setup, prints the logs, and opens the dashboard.
 
@@ -349,7 +349,7 @@ The launcher continues automatically. You'll see:
 
 Then you're live:
 
-- **Dashboard** — <http://localhost:8080>
+- **Dashboard** — <http://localhost:8101>
 - **n8n** — <http://localhost:5678> (log in with the email/password from step 3)
 
 Warnings rather than errors here are normal if you skipped SMTP — Slack alerts still work. Anything that failed is named explicitly, so you know what to fix.
@@ -382,7 +382,7 @@ The result is identical; you've just done by hand what the setup page does for y
 
 ### The dashboard
 
-<http://localhost:8080> is where you'll spend your time. It refreshes itself every minute.
+<http://localhost:8101> is where you'll spend your time. It refreshes itself every minute.
 
 - **Overview** — signals analysed, how many escalated to alerts, the average risk score, and how many suppliers are actively monitored.
 - **Risk breakdown** — how recent findings distribute across Low / Medium / High / Critical.
@@ -449,9 +449,9 @@ The pipeline runs at the top of every hour. To trigger it immediately:
 Then refresh the dashboard — the Recent signals table should populate. You can also check via the API:
 
 ```bash
-curl -s http://localhost:8080/api/health
-curl -s http://localhost:8080/api/stats
-curl -s "http://localhost:8080/api/alerts?limit=5"
+curl -s http://localhost:8101/api/health
+curl -s http://localhost:8101/api/stats
+curl -s "http://localhost:8101/api/alerts?limit=5"
 ```
 
 ### Everyday commands
@@ -552,7 +552,7 @@ Something else on your machine is using port 8080 or 5678. Either stop that prog
 DASHBOARD_PORT=8090
 ```
 
-then `docker compose up -d`. To find the culprit: `netstat -ano | findstr :8080` on Windows, `lsof -i :8080` on macOS/Linux.
+then `docker compose up -d`. To find the culprit: `netstat -ano | findstr :8101` on Windows, `lsof -i :8101` on macOS/Linux.
 </details>
 
 <details>
@@ -635,7 +635,7 @@ With Gmail, an ordinary account password will **not** work; it must be an [app p
 
 <br>
 
-Providers retire models periodically. The workflows use `llama-3.3-70b-versatile`. Check the current list at [console.groq.com/docs/models](https://console.groq.com/docs/models), then update the model name in the **Build Risk Prompt** node inside n8n (or in `workflows/supply-chain-disruption-alert.json` before importing).
+Providers retire models periodically. The workflows use `openai/gpt-oss-120b`. Check the current list at [console.groq.com/docs/models](https://console.groq.com/docs/models), then update the model name in the **Build Risk Prompt** node inside n8n (or in `workflows/supply-chain-disruption-alert.json` before importing).
 </details>
 
 <details>

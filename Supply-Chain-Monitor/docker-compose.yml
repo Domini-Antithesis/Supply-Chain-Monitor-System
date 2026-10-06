@@ -5,9 +5,15 @@ services:
     # Bound to 127.0.0.1 so the UI is reachable only from this machine, never
     # from anywhere else on the network.
     ports:
-      - "127.0.0.1:5678:5678"
+      - "127.0.0.1:${N8N_HOST_PORT:-5678}:5678"
     environment:
       N8N_HOST: ${N8N_HOST:-localhost}
+      # Containers here have no working IPv6 route, but these APIs publish AAAA
+      # records. Node 20+ races the two families (Happy Eyeballs); the dead
+      # IPv6 attempt poisons the result and every outbound call fails with
+      # ETIMEDOUT in about 1.3s, even though plain wget to the same URL works.
+      # Preferring IPv4 and switching the race off is the documented remedy.
+      NODE_OPTIONS: --dns-result-order=ipv4first --no-network-family-autoselection
       N8N_PORT: 5678
       N8N_PROTOCOL: http
       WEBHOOK_URL: ${WEBHOOK_URL:-http://localhost:5678/}
@@ -39,6 +45,12 @@ services:
       - n8n
     environment:
       N8N_BASE_URL: http://n8n:5678
+      # Containers here have no working IPv6 route, but these APIs publish AAAA
+      # records. Node 20+ races the two families (Happy Eyeballs); the dead
+      # IPv6 attempt poisons the result and every outbound call fails with
+      # ETIMEDOUT in about 1.3s, even though plain wget to the same URL works.
+      # Preferring IPv4 and switching the race off is the documented remedy.
+      NODE_OPTIONS: --dns-result-order=ipv4first --no-network-family-autoselection
       N8N_OWNER_EMAIL: ${N8N_OWNER_EMAIL:-}
       N8N_OWNER_PASSWORD: ${N8N_OWNER_PASSWORD:-}
       N8N_OWNER_FIRST_NAME: ${N8N_OWNER_FIRST_NAME:-Supply}
@@ -53,6 +65,8 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_SECURE: ${SMTP_SECURE:-false}
       WORKFLOWS_DIR: /workflows
+      DASHBOARD_HOST_PORT: ${DASHBOARD_PORT:-8101}
+      N8N_UI_PORT: ${N8N_HOST_PORT:-5678}
     volumes:
       - ./bootstrap:/bootstrap:ro
       - ./workflows:/workflows:ro
@@ -65,9 +79,15 @@ services:
     # Bound to 127.0.0.1 so the dashboard (and its first-run setup page) is
     # reachable only from this machine.
     ports:
-      - "127.0.0.1:${DASHBOARD_PORT:-8080}:8080"
+      - "127.0.0.1:${DASHBOARD_PORT:-8101}:8080"
     environment:
       DASHBOARD_PORT: 8080
+      # Containers here have no working IPv6 route, but these APIs publish AAAA
+      # records. Node 20+ races the two families (Happy Eyeballs); the dead
+      # IPv6 attempt poisons the result and every outbound call fails with
+      # ETIMEDOUT in about 1.3s, even though plain wget to the same URL works.
+      # Preferring IPv4 and switching the race off is the documented remedy.
+      NODE_OPTIONS: --dns-result-order=ipv4first --no-network-family-autoselection
       AIRTABLE_API_KEY: ${AIRTABLE_API_KEY:-}
       AIRTABLE_BASE_ID: ${AIRTABLE_BASE_ID:-}
       AIRTABLE_ALERTS_TABLE_NAME: ${AIRTABLE_ALERTS_TABLE_NAME:-Disruption Alerts}
